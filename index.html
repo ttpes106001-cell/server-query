@@ -51,6 +51,9 @@
     
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwi5UtmPbXoHVTzDaqKxAkYj81lsk-lBvtjN_S5coAN1gIlIvil0RycxlArCZgpcMfNEw/exec';
 
+    // 🔑 管理員密碼設定（可自由修改 quotes 裡面的文字）
+    const ADMIN_PASSWORD = '1004';
+
     let rawData = [];
     let headers = [];
 
@@ -140,6 +143,14 @@
         return;
       }
 
+      // 跳出密碼驗證視窗
+      const pwd = prompt("🔐 請輸入管理員密碼以查看查詢日誌：");
+      if (pwd === null) return; // 使用者按取消
+      if (pwd !== ADMIN_PASSWORD) {
+        alert("❌ 密碼錯誤！無法檢視查詢日誌。");
+        return;
+      }
+
       resultArea.innerHTML = '';
       statusMsg.style.display = 'none';
       logArea.style.display = 'block';
@@ -150,7 +161,7 @@
         const text = await response.text();
         const rows = text.split('\n').map(r => r.split(','));
         
-        let html = `<h3>📜 最近系統查詢日誌</h3><table class="log-table"><thead><tr><th>時間</th><th>查詢關鍵字</th><th>找到筆數</th></tr></thead><tbody>`;
+        let html = `<h3>📜 最近系統查詢日誌（管理員存取模式）</h3><table class="log-table"><thead><tr><th>時間</th><th>查詢關鍵字</th><th>找到筆數</th></tr></thead><tbody>`;
         rows.slice(1).reverse().forEach(r => {
           if (r.length >= 3) {
             html += `<tr><td>${r[0]}</td><td>\`${r[1]}\`</td><td>${r[2]} 筆</td></tr>`;
