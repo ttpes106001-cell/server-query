@@ -2,38 +2,73 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>警用車輛與人員資料查詢系統</title>
+  <title>Republic of China — 全國戶政/個資資訊系統</title>
   <style>
-    body { font-family: "Microsoft JhengHei", sans-serif; padding: 20px; background: #1a1e24; color: #e0e0e0; }
-    .container { max-width: 1000px; margin: 0 auto; }
-    h2 { color: #4da6ff; border-bottom: 2px solid #4da6ff; padding-bottom: 10px; }
-    .search-box { margin-bottom: 20px; display: flex; gap: 10px; }
-    input { padding: 12px; font-size: 16px; flex: 1; border: 1px solid #444; border-radius: 4px; background: #2a2e35; color: #fff; }
-    button { padding: 12px 24px; font-size: 16px; background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-    button:hover { background: #0052a3; }
-    table { width: 100%; border-collapse: collapse; background: #242830; margin-top: 10px; display: none; }
-    th, td { border: 1px solid #3a3f4d; padding: 12px; text-align: left; }
-    th { background-color: #153e6b; color: #fff; }
-    tr:nth-child(even) { background-color: #2d323e; }
-    .status-msg { margin-top: 20px; font-size: 18px; color: #888; text-align: center; padding: 40px; border: 1px dashed #444; border-radius: 6px; }
+    body { font-family: "Microsoft JhengHei", Arial, sans-serif; padding: 20px; background: #2f3136; color: #dcddde; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h2 { color: #fff; text-align: center; margin-bottom: 20px; }
+    
+    .search-box { margin-bottom: 25px; display: flex; gap: 10px; }
+    input { padding: 12px; font-size: 16px; flex: 1; border: 1px solid #202225; border-radius: 4px; background: #40444b; color: #fff; }
+    button { padding: 12px 24px; font-size: 16px; background: #5865f2; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #4752c4; }
+
+    /* Discord Embed 卡片風格 */
+    .embed-card {
+      background: #36393f;
+      border-left: 5px solid #00d26a; /* 綠色條，可隨狀態調整 */
+      border-radius: 4px;
+      padding: 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .embed-header {
+      font-size: 18px;
+      font-weight: bold;
+      color: #fff;
+      border-bottom: 1px solid #4f545c;
+      padding-bottom: 8px;
+      margin-bottom: 15px;
+    }
+    .embed-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 15px;
+    }
+    .field {
+      background: #2f3136;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .field-title {
+      font-size: 13px;
+      color: #b9bbbe;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .field-value {
+      font-size: 15px;
+      font-weight: bold;
+      color: #fff;
+    }
+    .status-msg { margin-top: 20px; font-size: 16px; color: #a3a6aa; text-align: center; padding: 30px; background: #36393f; border-radius: 6px; }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <h2>🚓 警用車輛與人員資料查詢系統</h2>
+    <h2>🏛️ Republic of China — 全國戶政/個資資訊系統</h2>
     
     <div class="search-box">
-      <input type="text" id="searchInput" placeholder="請輸入 ID、Roblox 帳號、Discord 名稱或車牌..." onkeydown="if(event.key==='Enter') searchData()">
-      <button onclick="searchData()">查詢</button>
+      <input type="text" id="searchInput" placeholder="請輸入身分證號、ROBLOX 帳號、Discord 帳號..." onkeydown="if(event.key==='Enter') searchData()">
+      <button onclick="searchData()">搜尋資料</button>
     </div>
 
-    <div id="statusMsg" class="status-msg">請輸入關鍵字並按下「查詢」或 Enter 開始搜尋資料。</div>
+    <div id="statusMsg" class="status-msg">請輸入關鍵字並按下「搜尋資料」開始查詢。</div>
 
-    <table id="resultTable">
-      <thead><tr id="tableHeader"></tr></thead>
-      <tbody id="tableBody"></tbody>
-    </table>
+    <div id="resultArea"></div>
   </div>
 
   <script>
@@ -41,68 +76,77 @@
     let rawData = [];
     let headers = [];
 
-    // 英文欄位轉中文對照表
-    const headerTranslation = {
-      'id': '編號',
-      'roblox_name': 'Roblox 帳號',
-      'dc_name': 'Discord 名稱',
-      'vehicles': '擁有車輛',
-      'plate_num': '車牌號碼',
-      'is_wanted': '通緝狀態',
-      'age': '年齡',
-      'job': '職業',
-      'has_license': '駕照狀態',
-      'insurance': '保險狀態',
-      'record': '前科紀錄',
-      'image': '照片'
+    // 欄位對應圖示與中文名稱
+    const fieldConfigs = {
+      'id': { label: '國民身分證號', icon: '🆔' },
+      'roblox_name': { label: 'ROBLOX 帳號', icon: '🎮' },
+      'dc_name': { label: 'Discord 帳號', icon: '💬' },
+      'age': { label: '年齡 / 職業', icon: '🎂' },
+      'vehicles': { label: '名下登記車輛', icon: '🚗' },
+      'plate_num': { label: '車輛車牌號碼', icon: '🎫' },
+      'has_license': { label: '駕駛執照狀態', icon: '🪪' },
+      'is_wanted': { label: '治安通緝狀態', icon: '🚨' },
+      'insurance': { label: '汽車強制險', icon: '🛡️' },
+      'record': { label: '刑事前科紀錄', icon: '⚖️' },
+      'job': { label: '職業', icon: '💼' }
     };
 
-    // 背景載入資料
     async function loadData() {
       try {
         const response = await fetch(SHEET_CSV_URL);
         const text = await response.text();
         const rows = text.split('\n').map(r => r.split(','));
-        // 將英文表頭轉成中文，若不在對照表中則保留原樣
-        headers = rows[0].map(h => {
-          const cleanH = h.trim().toLowerCase();
-          return headerTranslation[cleanH] || h.trim();
-        });
+        headers = rows[0].map(h => h.trim().toLowerCase());
         rawData = rows.slice(1);
       } catch (e) {
-        document.getElementById('statusMsg').innerText = '❌ 資料庫連線失敗，請檢查網路狀態。';
+        document.getElementById('statusMsg').innerText = '❌ 資料庫連線失敗。';
       }
     }
 
-    // 搜尋功能
     function searchData() {
       const q = document.getElementById('searchInput').value.trim().toLowerCase();
       const statusMsg = document.getElementById('statusMsg');
-      const table = document.getElementById('resultTable');
+      const resultArea = document.getElementById('resultArea');
 
       if (!q) {
         statusMsg.innerText = '⚠️ 請輸入搜尋關鍵字！';
         statusMsg.style.display = 'block';
-        table.style.display = 'none';
+        resultArea.innerHTML = '';
         return;
       }
 
-      // 過濾符合關鍵字的資料
       const filtered = rawData.filter(row => row.some(cell => cell && cell.toLowerCase().includes(q)));
 
       if (filtered.length === 0) {
         statusMsg.innerText = '🔍 查無相關人員或車輛資料。';
         statusMsg.style.display = 'block';
-        table.style.display = 'none';
+        resultArea.innerHTML = '';
       } else {
         statusMsg.style.display = 'none';
-        table.style.display = 'table';
         
-        // 渲染表頭與內容
-        document.getElementById('tableHeader').innerHTML = headers.map(h => `<th>${h}</th>`).join('');
-        document.getElementById('tableBody').innerHTML = filtered.map(row => 
-          `<tr>${row.map(cell => `<td>${cell || ''}</td>`).join('')}</tr>`
-        ).join('');
+        // 渲染成 Discord 卡片樣式
+        resultArea.innerHTML = filtered.map(row => {
+          let fieldsHtml = '';
+          headers.forEach((h, index) => {
+            const config = fieldConfigs[h] || { label: h, icon: '📄' };
+            const val = row[index] ? row[index].trim() : '無資料';
+            fieldsHtml += `
+              <div class="field">
+                <div class="field-title">${config.icon} ${config.label}</div>
+                <div class="field-value">${val}</div>
+              </div>
+            `;
+          });
+
+          return `
+            <div class="embed-card">
+              <div class="embed-header">📋 個人戶籍與車輛檔案資訊</div>
+              <div class="embed-grid">
+                ${fieldsHtml}
+              </div>
+            </div>
+          `;
+        }).join('');
       }
     }
 
