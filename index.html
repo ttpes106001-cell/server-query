@@ -8,52 +8,24 @@
     .container { max-width: 800px; margin: 0 auto; }
     h2 { color: #fff; text-align: center; margin-bottom: 20px; }
     
-    .search-box { margin-bottom: 25px; display: flex; gap: 10px; }
+    .search-box { margin-bottom: 20px; display: flex; gap: 10px; }
     input { padding: 12px; font-size: 16px; flex: 1; border: 1px solid #202225; border-radius: 4px; background: #40444b; color: #fff; }
-    button { padding: 12px 24px; font-size: 16px; background: #5865f2; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    button { padding: 12px 20px; font-size: 15px; background: #5865f2; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
     button:hover { background: #4752c4; }
+    .btn-log { background: #4f545c; }
+    .btn-log:hover { background: #686d73; }
 
-    /* Discord Embed 卡片風格 */
-    .embed-card {
-      background: #36393f;
-      border-left: 5px solid #00d26a; /* 綠色條，可隨狀態調整 */
-      border-radius: 4px;
-      padding: 16px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
-    .embed-header {
-      font-size: 18px;
-      font-weight: bold;
-      color: #fff;
-      border-bottom: 1px solid #4f545c;
-      padding-bottom: 8px;
-      margin-bottom: 15px;
-    }
-    .embed-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 15px;
-    }
-    .field {
-      background: #2f3136;
-      padding: 10px;
-      border-radius: 4px;
-    }
-    .field-title {
-      font-size: 13px;
-      color: #b9bbbe;
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .field-value {
-      font-size: 15px;
-      font-weight: bold;
-      color: #fff;
-    }
+    .embed-card { background: #36393f; border-left: 5px solid #00d26a; border-radius: 4px; padding: 16px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+    .embed-header { font-size: 18px; font-weight: bold; color: #fff; border-bottom: 1px solid #4f545c; padding-bottom: 8px; margin-bottom: 15px; }
+    .embed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
+    .field { background: #2f3136; padding: 10px; border-radius: 4px; }
+    .field-title { font-size: 13px; color: #b9bbbe; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+    .field-value { font-size: 15px; font-weight: bold; color: #fff; }
     .status-msg { margin-top: 20px; font-size: 16px; color: #a3a6aa; text-align: center; padding: 30px; background: #36393f; border-radius: 6px; }
+
+    .log-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #36393f; border-radius: 4px; overflow: hidden; }
+    .log-table th, .log-table td { padding: 10px; border: 1px solid #4f545c; text-align: left; }
+    .log-table th { background: #202225; color: #5865f2; }
   </style>
 </head>
 <body>
@@ -64,19 +36,24 @@
     <div class="search-box">
       <input type="text" id="searchInput" placeholder="請輸入身分證號、ROBLOX 帳號、Discord 帳號..." onkeydown="if(event.key==='Enter') searchData()">
       <button onclick="searchData()">搜尋資料</button>
+      <button class="btn-log" onclick="toggleLogs()">📜 查詢紀錄日誌</button>
     </div>
 
     <div id="statusMsg" class="status-msg">請輸入關鍵字並按下「搜尋資料」開始查詢。</div>
 
     <div id="resultArea"></div>
+    <div id="logArea" style="display: none;"></div>
   </div>
 
   <script>
     const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-Ks0IDBy-7y1iZaEfTm9i8zjz16bywOG9cRo-GIzYkMoEYHZX05Scg0LxAT64JZ5gH92iMYARbLev/pub?gid=0&single=true&output=csv';
+    const SHEET_LOGS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-Ks0IDBy-7y1iZaEfTm9i8zjz16bywOG9cRo-GIzYkMoEYHZX05Scg0LxAT64JZ5gH92iMYARbLev/pub?gid=452529561&single=true&output=csv';
+    
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwi5UtmPbXoHVTzDaqKxAkYj81lsk-lBvtjN_S5coAN1gIlIvil0RycxlArCZgpcMfNEw/exec';
+
     let rawData = [];
     let headers = [];
 
-    // 欄位對應圖示與中文名稱
     const fieldConfigs = {
       'id': { label: '國民身分證號', icon: '🆔' },
       'roblox_name': { label: 'ROBLOX 帳號', icon: '🎮' },
@@ -103,10 +80,21 @@
       }
     }
 
+    function saveLog(query, count) {
+      if (!SCRIPT_URL) return;
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query, count: count })
+      });
+    }
+
     function searchData() {
       const q = document.getElementById('searchInput').value.trim().toLowerCase();
       const statusMsg = document.getElementById('statusMsg');
       const resultArea = document.getElementById('resultArea');
+      document.getElementById('logArea').style.display = 'none';
 
       if (!q) {
         statusMsg.innerText = '⚠️ 請輸入搜尋關鍵字！';
@@ -116,6 +104,8 @@
       }
 
       const filtered = rawData.filter(row => row.some(cell => cell && cell.toLowerCase().includes(q)));
+      
+      saveLog(q, filtered.length);
 
       if (filtered.length === 0) {
         statusMsg.innerText = '🔍 查無相關人員或車輛資料。';
@@ -123,8 +113,6 @@
         resultArea.innerHTML = '';
       } else {
         statusMsg.style.display = 'none';
-        
-        // 渲染成 Discord 卡片樣式
         resultArea.innerHTML = filtered.map(row => {
           let fieldsHtml = '';
           headers.forEach((h, index) => {
@@ -137,16 +125,41 @@
               </div>
             `;
           });
-
-          return `
-            <div class="embed-card">
-              <div class="embed-header">📋 個人戶籍與車輛檔案資訊</div>
-              <div class="embed-grid">
-                ${fieldsHtml}
-              </div>
-            </div>
-          `;
+          return `<div class="embed-card"><div class="embed-header">📋 個人戶籍與車輛檔案資訊</div><div class="embed-grid">${fieldsHtml}</div></div>`;
         }).join('');
+      }
+    }
+
+    async function toggleLogs() {
+      const logArea = document.getElementById('logArea');
+      const resultArea = document.getElementById('resultArea');
+      const statusMsg = document.getElementById('statusMsg');
+
+      if (logArea.style.display === 'block') {
+        logArea.style.display = 'none';
+        return;
+      }
+
+      resultArea.innerHTML = '';
+      statusMsg.style.display = 'none';
+      logArea.style.display = 'block';
+      logArea.innerHTML = '⌛ 載入查詢日誌中...';
+
+      try {
+        const response = await fetch(SHEET_LOGS_CSV_URL);
+        const text = await response.text();
+        const rows = text.split('\n').map(r => r.split(','));
+        
+        let html = `<h3>📜 最近系統查詢日誌</h3><table class="log-table"><thead><tr><th>時間</th><th>查詢關鍵字</th><th>找到筆數</th></tr></thead><tbody>`;
+        rows.slice(1).reverse().forEach(r => {
+          if (r.length >= 3) {
+            html += `<tr><td>${r[0]}</td><td>\`${r[1]}\`</td><td>${r[2]} 筆</td></tr>`;
+          }
+        });
+        html += `</tbody></table>`;
+        logArea.innerHTML = html;
+      } catch(e) {
+        logArea.innerHTML = '❌ 載入日誌失敗，請確認試算表 logs 工作表已發布。';
       }
     }
 
