@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>伺服器資料查詢系統</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f4f6f9; }
+    .search-box { margin-bottom: 20px; }
+    input { padding: 10px; font-size: 16px; width: 300px; border: 1px solid #ccc; border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background-color: #007bff; color: white; }
+  </style>
+</head>
+<body>
+  <h2>伺服器資料查詢系統</h2>
+  <div class="search-box">
+    <input type="text" id="searchInput" onkeyup="searchData()" placeholder="搜尋 ID、帳號、車牌...">
+  </div>
+  <table>
+    <thead><tr id="tableHeader"></tr></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <script>
+    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-Ks0IDBy-7y1iZaEfTm9i8zjz16bywOG9cRo-GIzYkMoEYHZX05Scg0LxAT64JZ5gH92iMYARbLev/pub?gid=0&single=true&output=csv';
+    let rawData = [];
+
+    async function loadData() {
+      const response = await fetch(SHEET_CSV_URL);
+      const text = await response.text();
+      const rows = text.split('\n').map(r => r.split(','));
+      document.getElementById('tableHeader').innerHTML = rows[0].map(h => `<th>${h}</th>`).join('');
+      rawData = rows.slice(1);
+      renderTable(rawData);
+    }
+
+    function renderTable(data) {
+      document.getElementById('tableBody').innerHTML = data.map(row => 
+        `<tr>${row.map(cell => `<td>${cell || ''}</td>`).join('')}</tr>`
+      ).join('');
+    }
+
+    function searchData() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      renderTable(rawData.filter(row => row.some(cell => cell.toLowerCase().includes(q))));
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
