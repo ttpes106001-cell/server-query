@@ -41,13 +41,33 @@
     let rawData = [];
     let headers = [];
 
+    // 英文欄位轉中文對照表
+    const headerTranslation = {
+      'id': '編號',
+      'roblox_name': 'Roblox 帳號',
+      'dc_name': 'Discord 名稱',
+      'vehicles': '擁有車輛',
+      'plate_num': '車牌號碼',
+      'is_wanted': '通緝狀態',
+      'age': '年齡',
+      'job': '職業',
+      'has_license': '駕照狀態',
+      'insurance': '保險狀態',
+      'record': '前科紀錄',
+      'image': '照片'
+    };
+
     // 背景載入資料
     async function loadData() {
       try {
         const response = await fetch(SHEET_CSV_URL);
         const text = await response.text();
         const rows = text.split('\n').map(r => r.split(','));
-        headers = rows[0];
+        // 將英文表頭轉成中文，若不在對照表中則保留原樣
+        headers = rows[0].map(h => {
+          const cleanH = h.trim().toLowerCase();
+          return headerTranslation[cleanH] || h.trim();
+        });
         rawData = rows.slice(1);
       } catch (e) {
         document.getElementById('statusMsg').innerText = '❌ 資料庫連線失敗，請檢查網路狀態。';
